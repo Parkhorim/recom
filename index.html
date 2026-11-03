@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendation Lab - 추천 알고리즘 실험실</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Vue.js 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #a855f7, #6366f1, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-glow:hover {
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+        }
+        .pulse-glow {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px rgba(168, 85, 247, 0.6); }
+            70% { box-shadow: 0 0 0 15px rgba(168, 85, 247, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(168, 85, 247, 0); }
+        }
+        /* Custom CSS Animation for Connecting Lines */
+        .dash-flow {
+            stroke-dasharray: 6;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -12; }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="app" class="flex-grow flex flex-col max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6">
+
+        <!-- HEADER -->
+        <header class="flex flex-col md:flex-row justify-between items-center bg-slate-900/80 backdrop-blur border border-slate-800 p-6 rounded-2xl shadow-xl gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-blue-500 flex items-center justify-center text-white text-2xl shadow-lg">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                        Recommendation <span class="gradient-text">Lab</span>
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-400">중고등학생을 위한 추천 알고리즘 인터랙티브 시뮬레이터</p>
+                </div>
+            </div>
+
+            <!-- MODE SWITCHER & TUTORIAL BUTTON -->
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <!-- TUTORIAL / GUIDE BUTTON -->
+                <button 
+                    @click="showTutorialModal = true"
+                    class="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs rounded-xl transition shadow-lg flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-book-open"></i> 시뮬레이터 사용 가이드
+                </button>
+
+                <div class="flex bg-slate-800 p-1.5 rounded-xl border border-slate-700 flex-grow md:flex-grow-0 overflow-x-auto">
+                    <button 
+                        @click="setMode('content')"
+                        :class="currentMode === 'content' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-tags"></i> 1. 콘텐츠 기반
+                    </button>
+                    <button 
+                        @click="setMode('collaborative')"
+                        :class="currentMode === 'collaborative' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-users"></i> 2. 협업 필터링
+                    </button>
+                    <button 
+                        @click="setMode('hybrid')"
+                        :class="currentMode === 'hybrid' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'"
+                        class="flex-1 px-3 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-solid fa-bolt"></i> 3. 하이브리드
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MATH INSPECTOR TOGGLE BANNER -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-400/50 flex items-center justify-center text-indigo-300 text-lg font-mono font-bold">
+                    Σ
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                        📐 실시간 수학 연산 검사기 (Math Inspector)
+                        <span class="bg-indigo-900/80 text-indigo-300 border border-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-mono">수식 모드</span>
+                    </h2>
+                    <p class="text-xs text-slate-400">알고리즘 내부에서 일어나는 벡터 연산과 수식 결과를 실시간으로 확인합니다.</p>
+                </div>
+            </div>
+            <button @click="showMathDetails = !showMathDetails" 
+                    :class="showMathDetails ? 'bg-indigo-600 text-white shadow-indigo-900/50' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold transition border border-indigo-500/30 flex items-center gap-1.5 shadow-md">
+                <i class="fa-solid" :class="showMathDetails ? 'fa-eye-slash' : 'fa-square-root-variable'"></i>
+                {{ showMathDetails ? '수식 닫기' : '수식/내부구조 펼치기' }}
+            </button>
+        </div>
+
+        <!-- MODE DESCRIPTION BANNER -->
+        <section class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-700/60 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-start gap-4">
+                <div class="mt-1 text-2xl text-purple-400">
+                    <i class="fa-solid fa-circle-info"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+                        {{ modeTitle }}
+                    </h2>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        {{ modeDescription }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- CONTROLS / RESET -->
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                <button @click="resetData" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> 데이터 초기화
+                </button>
+            </div>
+        </section>
+
+        <!-- MAIN CONTENT AREA (GRID) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+            
+            <!-- LEFT PANEL: USER INPUT (MOVIE EVALUATION) -->
+            <section class="lg:col-span-5 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-lg text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-clapperboard text-purple-400"></i>
+                        영화 평가하기 (내 데이터 입력)
+                    </h3>
+                    <span class="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-full border border-slate-700">
+                        평가된 영화: <strong class="text-purple-400">{{ evaluatedCount }}</strong> / {{ movies.length }}
+                    </span>
+                </div>
+
+                <div class="text-xs text-slate-400 bg-slate-950/40 p-3 rounded-lg border border-slate-800/80">
+                    💡 영화에 <strong>'좋아요'</strong>를 누르거나 <strong>별점</strong>을 부여해보세요! 오른쪽 알고리즘 실시간 추천 결과가 즉시 변경됩니다.
+                </div>
+
+                <!-- MOVIE INPUT CARDS -->
+                <div class="space-y-3 overflow-y-auto max-h-[500px] pr-1">
+                    <div v-for="movie in movies" :key="movie.id" 
+                         class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 p-3.5 rounded-xl transition flex flex-col gap-2.5">
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">{{ movie.emoji }}</span>
+                                <div>
+                                    <h4 class="font-bold text-slate-100 text-base">{{ movie.title }}</h4>
+                                    <p class="text-xs text-slate-400">{{ movie.genre.join(', ') }}</p>
+                                </div>
+                            </div>
+
+                            <!-- LIKE TOGGLE (Content-Based Focus) -->
+                            <button @click="toggleLike(movie.id)" 
+                                    :class="movie.liked ? 'bg-purple-600 text-white border-purple-500 scale-105' : 'bg-slate-700/50 text-slate-400 hover:text-slate-200 border-slate-600'"
+                                    class="px-3 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-heart" :class="movie.liked ? 'text-red-300' : ''"></i>
+                                {{ movie.liked ? '선호함' : '선호' }}
+                            </button>
+                        </div>
+
+                        <!-- TAGS -->
+                        <div class="flex flex-wrap gap-1.5">
+                            <span v-for="tag in movie.tags" :key="tag" 
+                                  :class="movie.liked ? 'bg-purple-950/80 text-purple-300 border-purple-800' : 'bg-slate-900 text-slate-400 border-slate-800'"
+                                  class="text-[11px] px-2 py-0.5 rounded border">
+                                #{{ tag }}
+                            </span>
+                        </div>
+
+                        <!-- RATING STAR INPUT (Collaborative Focus) -->
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-700/40 text-xs">
+                            <span class="text-slate-400">내 별점:</span>
+                            <div class="flex items-center gap-1">
+                                <button v-for="star in 5" :key="star" @click="setRating(movie.id, star)" class="text-sm focus:outline-none transition">
+                                    <i class="fa-star" :class="star <= movie.rating ? 'fa-solid text-amber-400' : 'fa-regular text-slate-600'"></i>
+                                </button>
+                                <span class="ml-1.5 text-xs font-semibold text-slate-300 w-4 text-right">{{ movie.rating > 0 ? movie.rating : '-' }}</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT PANEL: ALGORITHM VISUALIZATION & RECOMMENDATIONS -->
+            <section class="lg:col-span-7 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col gap-5">
+                
+                <!-- VISUALIZATION HEADER -->
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-lg text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-cpu text-blue-400"></i>
+                        알고리즘 연산 및 실시간 추천 결과
+                    </h3>
+                    <div class="flex gap-2">
+                        <!-- EXPERIMENT BUTTONS: Cold Start & Filter Bubble -->
+                        <button @click="triggerColdStart" class="text-xs px-2.5 py-1 bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800 rounded-lg transition font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-snowflake"></i> Cold Start 체험
+                        </button>
+                        <button @click="triggerFilterBubble" class="text-xs px-2.5 py-1 bg-pink-950/60 hover:bg-pink-900 text-pink-300 border border-pink-800 rounded-lg transition font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-soap"></i> 필터버블 체험
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ALGORITHM SPECIFIC VISUALIZATION STEP -->
+                
+                <!-- 1. CONTENT-BASED VISUALIZATION -->
+                <div v-if="currentMode === 'content'" class="space-y-4">
+
+                    <!-- REALTIME MATH INSPECTOR FOR CONTENT-BASED -->
+                    <div v-if="showMathDetails" class="bg-slate-950 border border-purple-500/40 p-4 rounded-xl font-mono text-xs space-y-3 shadow-inner">
+                        <div class="flex justify-between items-center text-purple-300 font-bold border-b border-purple-950 pb-2">
+                            <span><i class="fa-solid fa-calculator"></i> 콘텐츠 유사도 수식: 자카드 유사도 (Jaccard Similarity)</span>
+                            <span class="text-[10px] bg-purple-900/60 px-2 py-0.5 rounded text-purple-200">J(A, B) = |A ∩ B| / |A ∪ B|</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px] leading-relaxed">
+                            사용자가 선택한 전체 태그 집합(A)과 각 영화의 태그 집합(B)의 <strong>교집합 크기(|A ∩ B|)</strong>를 <strong>합집합 크기(|A ∪ B|)</strong>로 나누어 0~1 사이 유사도를 계산합니다.
+                        </p>
+
+                        <!-- MATH STEP BREAKDOWN FOR TOP MOVIE -->
+                        <div v-if="contentRecommendations.length > 0" class="bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-2">
+                            <div class="text-slate-200 font-bold flex items-center justify-between text-[11px]">
+                                <span>#1 영화 [{{ contentRecommendations[0].movie.title }}] 수식 적용 현황:</span>
+                                <span class="text-purple-400 font-bold">결과 = {{ (contentRecommendations[0].jaccardScore).toFixed(2) }} ({{ contentRecommendations[0].score }}%)</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-300 bg-slate-950 p-2.5 rounded border border-slate-800">
+                                <div>• 교집합 A ∩ B = { {{ contentRecommendations[0].matchedTags.join(', ') || '없음' }} } (크기: {{ contentRecommendations[0].matchedTags.length }})</div>
+                                <div>• 합집합 A ∪ B 크기 = {{ contentRecommendations[0].unionTagCount }}</div>
+                            </div>
+                            <div class="text-[11px] text-purple-300 font-bold">
+                                계산식: {{ contentRecommendations[0].matchedTags.length }} / {{ contentRecommendations[0].unionTagCount }} = {{ (contentRecommendations[0].jaccardScore).toFixed(4) }} ➔ {{ contentRecommendations[0].score }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EXTRACTED TAGS PROFILE & VISUAL RADIAL GRAPH -->
+                    <div class="bg-slate-800/80 border border-purple-900/50 p-4 rounded-xl">
+                        <h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-fingerprint"></i> 내 취향 태그 프로필 (좋아요 기반 추출)
+                        </h4>
+                        
+                        <!-- VISUAL TAG BUBBLES WITH FREQUENCY BAR -->
+                        <div class="flex flex-wrap gap-2 min-h-[36px] items-center">
+                            <span v-if="extractedUserTags.length === 0" class="text-xs text-slate-500 italic">
+                                👈 왼쪽에서 영화의 '선호' 버튼을 눌러 태그 벡터를 생성해보세요!
+                            </span>
+                            <div v-for="(count, tag) in extractedUserTagCounts" :key="tag" 
+                                 class="bg-gradient-to-r from-purple-900 to-indigo-900 text-purple-200 border border-purple-500 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-2 shadow-md animate-pulse">
+                                <span>#{{ tag }}</span>
+                                <span class="bg-purple-950 text-purple-300 text-[10px] px-2 py-0.5 rounded-full font-mono font-extrabold border border-purple-700">가중치 {{ count }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECOMMENDATION LIST WITH MATCH SCORES & GRAPH -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">영화별 벡터 유사도 연산 (추천 순위)</h4>
+                        <div class="space-y-2.5">
+                            <div v-for="(rec, idx) in contentRecommendations" :key="rec.movie.id"
+                                 :class="idx === 0 && rec.score > 0 ? 'border-purple-500 bg-purple-950/30 pulse-glow' : 'border-slate-800 bg-slate-800/40'"
+                                 class="p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-extrabold text-slate-500 w-5">#{{ idx + 1 }}</span>
+                                    <span class="text-3xl">{{ rec.movie.emoji }}</span>
+                                    <div>
+                                        <div class="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+                                            {{ rec.movie.title }}
+                                            <span v-if="idx === 0 && rec.score > 0" class="bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">1위 매칭</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
+                                            <span>일치 태그:</span>
+                                            <span v-if="rec.matchedTags.length === 0" class="text-slate-600">없음</span>
+                                            <span v-for="t in rec.matchedTags" :key="t" class="bg-purple-950/80 text-purple-300 px-1.5 py-0.2 rounded border border-purple-900 text-[10px]">#{{ t }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MATCHING PROGRESS BAR & GRAPHIC -->
+                                <div class="w-full sm:w-48">
+                                    <div class="flex justify-between text-xs mb-1">
+                                        <span class="text-slate-400 text-[11px]">유사도 점수</span>
+                                        <span class="font-mono font-bold text-purple-400 text-xs">{{ rec.score }}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                                        <div class="bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-400 h-full rounded-full transition-all duration-500" :style="{ width: rec.score + '%' }"></div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. COLLABORATIVE VISUALIZATION -->
+                <div v-if="currentMode === 'collaborative'" class="space-y-4">
+
+                    <!-- REALTIME MATH INSPECTOR FOR COLLABORATIVE -->
+                    <div v-if="showMathDetails" class="bg-slate-950 border border-blue-500/40 p-4 rounded-xl font-mono text-xs space-y-3 shadow-inner">
+                        <div class="flex justify-between items-center text-blue-300 font-bold border-b border-blue-950 pb-2">
+                            <span><i class="fa-solid fa-calculator"></i> 유저 유사도 수식: 코사인 유사도 & 유클리드 거리</span>
+                            <span class="text-[10px] bg-blue-900/60 px-2 py-0.5 rounded text-blue-200">Similarity = 1 - (d / Max_Distance)</span>
+                        </div>
+                        <p class="text-slate-400 text-[11px] leading-relaxed">
+                            나의 평점 벡터 <strong class="text-blue-300">U(r1, r2, ...)</strong> 와 친구 유저의 평점 벡터 <strong class="text-blue-300">P(r1, r2, ...)</strong> 간의 차이 오차(Euclidean Distance <strong class="text-blue-300">d = √(Σ(Ui - Pi)²)</strong>)를 구해 0~100% 유사도로 정규화합니다.
+                        </p>
+
+                        <!-- MATH STEP BREAKDOWN FOR TOP PEER -->
+                        <div v-if="topPeer" class="bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-2">
+                            <div class="text-slate-200 font-bold flex items-center justify-between text-[11px]">
+                                <span>가장 가까운 유저 [{{ topPeer.name }}] 와의 벡터 거리 연산:</span>
+                                <span class="text-blue-400 font-bold">유사도 = {{ topPeer.similarity }}%</span>
+                            </div>
+                            <div class="text-[11px] text-slate-300 bg-slate-950 p-2.5 rounded border border-slate-800 space-y-1">
+                                <div>• 내 평점 벡터: [{{ movies.map(m => m.rating).join(', ') }}]</div>
+                                <div>• {{ topPeer.name.split(' ')[0] }} 평점 벡터: [{{ movies.map(m => topPeer.ratings[m.id]).join(', ') }}]</div>
+                                <div class="text-blue-300 font-semibold">• 평점 절대 오차 합 (Σ|Ui - Pi|): {{ topPeer.totalDiff }}점 (평균 오차: {{ topPeer.avgDiff.toFixed(2) }}점)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PEER SIMILARITY BOARD WITH GRAPHICAL METERS -->
+                    <div class="bg-slate-800/80 border border-blue-900/50 p-4 rounded-xl">
+                        <h4 class="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-users-viewfinder"></i> 유저 취향 거리(유사도) 매칭 네트워크</span>
+                            <span class="text-[11px] text-slate-400 font-normal">나(User) ↔ 친구들(Peers)</span>
+                        </h4>
+
+                        <!-- NETWORK CARDS WITH CONNECTORS -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div v-for="peer in peerSimilarities" :key="peer.id" 
+                                 :class="peer.isTopMatch ? 'border-blue-500 bg-blue-950/40 shadow-lg shadow-blue-950/50' : 'border-slate-700 bg-slate-900/60 opacity-80'"
+                                 class="p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition relative overflow-hidden">
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-2xl">{{ peer.avatar }}</span>
+                                    <span v-if="peer.isTopMatch" class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-extrabold animate-bounce">
+                                        소울메이트!
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <div class="font-bold text-slate-200 text-xs">{{ peer.name }}</div>
+                                    <div class="text-[10px] text-slate-400">{{ peer.trait }}</div>
+                                </div>
+
+                                <!-- SIMILARITY CIRCULAR / BAR GRAPH -->
+                                <div>
+                                    <div class="flex justify-between text-[11px] mb-1">
+                                        <span class="text-slate-400">평점 일치도</span>
+                                        <span class="font-mono font-bold" :class="peer.isTopMatch ? 'text-blue-400' : 'text-slate-400'">{{ peer.similarity }}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                                        <div :class="peer.isTopMatch ? 'bg-gradient-to-r from-blue-500 to-cyan-400' : 'bg-slate-600'" 
+                                             class="h-full transition-all duration-500" :style="{ width: peer.similarity + '%' }"></div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLLABORATIVE RECOMMENDATIONS -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">유사 유저 1위의 선호 항목 이식 (추천 연산)</h4>
+                        <div class="space-y-2.5">
+                            <div v-if="collaborativeRecommendations.length === 0" class="text-center p-8 bg-slate-900/40 rounded-xl border border-dashed border-slate-800 text-slate-500 text-sm">
+                                <i class="fa-solid fa-user-slash text-2xl mb-2 text-slate-600 block"></i>
+                                👈 왼쪽에서 영화 2~3개에 <strong>별점(★)</strong>을 매겨주세요! 나와 취향이 닮은 유저를 계산합니다.
+                            </div>
+                            <div v-for="(rec, idx) in collaborativeRecommendations" :key="rec.movie.id"
+                                 :class="idx === 0 ? 'border-blue-500 bg-blue-950/30 pulse-glow' : 'border-slate-800 bg-slate-800/40'"
+                                 class="p-3.5 rounded-xl border transition flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-extrabold text-slate-500">#{{ idx + 1 }}</span>
+                                    <span class="text-3xl">{{ rec.movie.emoji }}</span>
+                                    <div>
+                                        <div class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                                            {{ rec.movie.title }}
+                                            <span class="bg-blue-900/90 text-blue-300 border border-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                                {{ rec.recommendedBy }}님이 5점 수여
+                                            </span>
+                                        </div>
+                                        <div class="text-xs text-slate-400 mt-1">예상 예측 별점: <strong class="text-amber-400 font-mono">★ {{ rec.predictedRating }}</strong> / 5.0</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow transition flex items-center gap-1">
+                                        <i class="fa-solid fa-arrow-right-to-city"></i> {{ rec.recommendedBy }}의 추천
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. HYBRID VISUALIZATION -->
+                <div v-if="currentMode === 'hybrid'" class="space-y-4">
+
+                    <!-- REALTIME MATH INSPECTOR FOR HYBRID -->
+                    <div v-if="showMathDetails" class="bg-slate-950 border border-emerald-500/40 p-4 rounded-xl font-mono text-xs space-y-3 shadow-inner">
+                        <div class="flex justify-between items-center text-emerald-300 font-bold border-b border-emerald-950 pb-2">
+                            <span><i class="fa-solid fa-calculator"></i> 하이브리드 결합 수식: 선형 가중합 (Weighted Linear Combination)</span>
+                        </div>
+                        <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-2">
+                            <div class="text-emerald-400 font-bold text-[11px]">
+                                Final_Score(item) = w1 × Content_Score(item) + w2 × Collaborative_Score(item)
+                            </div>
+                            <div class="text-[11px] text-slate-300">
+                                • 설정된 가중치 계수: <strong class="text-purple-400">w1 = 0.4 (콘텐츠 40%)</strong>, <strong class="text-blue-400">w2 = 0.6 (협업 60%)</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/80 border border-emerald-900/50 p-4 rounded-xl">
+                        <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-diagram-project"></i> 가중치 융합 알고리즘 (Hybrid Formula)
+                        </h4>
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono flex items-center justify-between">
+                            <span>최종점수 = (콘텐츠유사도 × 40%) + (협업유사도 × 60%)</span>
+                            <span class="text-emerald-400 font-bold">실시간 연산 중...</span>
+                        </div>
+                    </div>
+
+                    <!-- COMBINED RESULTS WITH DETAILED BREAKDOWN -->
+                    <div class="space-y-2.5">
+                        <div v-for="(rec, idx) in hybridRecommendations" :key="rec.movie.id"
+                             :class="idx === 0 ? 'border-emerald-500 bg-emerald-950/30 pulse-glow' : 'border-slate-800 bg-slate-800/40'"
+                             class="p-3.5 rounded-xl border transition flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3 w-5/12">
+                                <span class="text-sm font-extrabold text-slate-500">#{{ idx + 1 }}</span>
+                                <span class="text-3xl">{{ rec.movie.emoji }}</span>
+                                <div>
+                                    <div class="font-bold text-slate-200 text-sm">{{ rec.movie.title }}</div>
+                                    <div class="text-[10px] text-slate-400">{{ rec.movie.genre.join(', ') }}</div>
+                                </div>
+                            </div>
+
+                            <div class="w-7/12">
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400 text-[11px]">하이브리드 종합 Score</span>
+                                    <span class="font-mono font-bold text-emerald-400 text-xs">{{ rec.finalScore }}점</span>
+                                </div>
+                                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
+                                    <div class="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full transition-all duration-500" :style="{ width: rec.finalScore + '%' }"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM INSIGHT POPUP / EXPLANATION CARD -->
+                <div class="mt-auto bg-slate-950/60 border border-slate-800 p-4 rounded-xl flex items-start gap-3 text-xs text-slate-300">
+                    <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
+                    <div>
+                        <strong class="text-slate-100 block mb-0.5">발표 팁 (학생 대상 핵심 정리)</strong>
+                        <span>{{ modeGuideText }}</span>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- NEW MODAL: TUTORIAL / USER GUIDE MODAL -->
+        <div v-if="showTutorialModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <div class="bg-slate-900 border border-amber-500/50 p-6 rounded-2xl max-w-xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+                
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-100">발표 시연 & 사용 설명서</h3>
+                            <p class="text-xs text-slate-400">발표 진행 시 다음 순서대로 시연해보세요!</p>
+                        </div>
+                    </div>
+                    <button @click="showTutorialModal = false" class="text-slate-400 hover:text-slate-100 text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- STEPS -->
+                <div class="space-y-4 text-xs">
+                    
+                    <!-- STEP 1 -->
+                    <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700 space-y-1.5">
+                        <div class="font-bold text-purple-400 flex items-center gap-2 text-sm">
+                            <span class="w-5 h-5 bg-purple-900 text-purple-200 rounded-full inline-flex items-center justify-center text-xs">1</span>
+                            콘텐츠 기반 필터링 시연 (태그 일치 알고리즘)
+                        </div>
+                        <p class="text-slate-300 leading-relaxed pl-7">
+                            상단 <strong>[1. 콘텐츠 기반]</strong> 탭을 클릭한 뒤, 왼쪽 영화 카드의 <strong>'선호'</strong> 버튼(예: [인터스텔라])을 클릭하세요. 상단에 <strong>#우주, #SF</strong> 태그가 추출되며 같은 태그를 가진 다른 영화의 유사도가 실시간 상승합니다.
+                        </p>
+                    </div>
+
+                    <!-- STEP 2 -->
+                    <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700 space-y-1.5">
+                        <div class="font-bold text-blue-400 flex items-center gap-2 text-sm">
+                            <span class="w-5 h-5 bg-blue-900 text-blue-200 rounded-full inline-flex items-center justify-center text-xs">2</span>
+                            협업 필터링 시연 (유사 유저 찾기)
+                        </div>
+                        <p class="text-slate-300 leading-relaxed pl-7">
+                            <strong>[2. 협업 필터링]</strong> 탭으로 이동 후, 영화 카드의 <strong>별점(★)</strong>을 클릭해보세요. 내 평점 패턴과 가장 비슷한 가상 친구(민수, 지민, 철수)의 <strong>일치도(%) 그래프</strong>가 상승하고, 그 친구가 5점을 부여한 미시청 영화가 추천으로 이식됩니다.
+                        </p>
+                    </div>
+
+                    <!-- STEP 3 -->
+                    <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700 space-y-1.5">
+                        <div class="font-bold text-amber-400 flex items-center gap-2 text-sm">
+                            <span class="w-5 h-5 bg-amber-900 text-amber-200 rounded-full inline-flex items-center justify-center text-xs">3</span>
+                            알고리즘의 문제점 2가지 체험 (발표 하이라이트)
+                        </div>
+                        <ul class="text-slate-300 space-y-1 pl-7 list-disc list-inside">
+                            <li><strong>Cold Start 버튼:</strong> 데이터가 0일 때 협업 필터링이 정지되는 한계를 보여줍니다.</li>
+                            <li><strong>필터버블 버튼:</strong> 한 장르만 연속 선택했을 때 취향 갇힘 현상을 설명합니다.</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+                <button @click="showTutorialModal = false" class="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold rounded-xl transition shadow-lg">
+                    이해했습니다! 발표 시작하기
+                </button>
+
+            </div>
+        </div>
+
+        <!-- MODAL: COLD START ALERT -->
+        <div v-if="showColdStartModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-slate-900 border border-amber-500/60 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-4">
+                <div class="w-16 h-16 bg-amber-500/20 border border-amber-500 rounded-full flex items-center justify-center mx-auto text-amber-400 text-3xl">
+                    <i class="fa-solid fa-snowflake"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100">Cold Start (차거운 시작) 문제 발생!</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    신규 회원이 가입했거나 새로운 영화가 등록되었을 때, <strong>과거 평가 데이터가 0개</strong>이므로 협업 필터링 알고리즘이 누구와 유사한지 계산할 수 없어 추천이 마비됩니다!
+                </p>
+                <div class="bg-slate-800 p-3 rounded-lg text-left text-xs text-amber-300 border border-amber-900/50">
+                    💡 <strong>해결책:</strong> 처음에 회원가입할 때 선호 장르/태그를 먼저 선택하게 하여 '콘텐츠 기반 필터링'으로 시작합니다.
+                </div>
+                <button @click="showColdStartModal = false" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl transition">
+                    확인했습니다
+                </button>
+            </div>
+        </div>
+
+        <!-- MODAL: FILTER BUBBLE ALERT -->
+        <div v-if="showFilterBubbleModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-slate-900 border border-pink-500/60 p-6 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-4">
+                <div class="w-16 h-16 bg-pink-500/20 border border-pink-500 rounded-full flex items-center justify-center mx-auto text-pink-400 text-3xl">
+                    <i class="fa-solid fa-soap"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-100">Filter Bubble (확증 편향) 현상</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    사용자가 한 가지 주제(예: SF 우주 영화)만 계속 좋아하면, 알고리즘이 계속 유사한 우주 영화만 추천하게 됩니다. 결국 <strong>다양한 장르(애니메이션, 코미디 등)를 접할 기회가 차단</strong>됩니다.
+                </p>
+                <div class="bg-slate-800 p-3 rounded-lg text-left text-xs text-pink-300 border border-pink-900/50">
+                    💡 <strong>해결책:</strong> 추천 알고리즘에 10~20% 정도의 '무작위(Random) 탐색 추천'을 섞어 새로운 취향을 발굴해 줍니다.
+                </div>
+                <button @click="showFilterBubbleModal = false" class="w-full py-2.5 bg-pink-500 hover:bg-pink-400 text-slate-950 font-bold rounded-xl transition">
+                    확인했습니다
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentMode: 'content', // 'content', 'collaborative', 'hybrid'
+                    showTutorialModal: false, 
+                    showColdStartModal: false,
+                    showFilterBubbleModal: false,
+                    showMathDetails: true, // SHOW MATH INSPECTOR BY DEFAULT
+                    
+                    // MOCK MOVIES DATASET
+                    movies: [
+                        { id: 1, title: '인터스텔라', emoji: '🚀', genre: ['SF', '드라마'], tags: ['우주', '시공간', '감동', '과학'], rating: 0, liked: false },
+                        { id: 2, title: '파묘', emoji: '👻', genre: ['스릴러', '미스터리'], tags: ['공포', '전통', '긴장감', '의식'], rating: 0, liked: false },
+                        { id: 3, title: '인사이드 아웃', emoji: '🧠', genre: ['애니메이션', '코미디'], tags: ['감정', '귀여움', '가족', '상상력'], rating: 0, liked: false },
+                        { id: 4, title: '어벤져스', emoji: '🛡️', genre: ['액션', 'SF'], tags: ['히어로', '화려함', '전투', '우주'], rating: 0, liked: false },
+                        { id: 5, title: '코코', emoji: '🎸', genre: ['애니메이션', '음악'], tags: ['음악', '감동', '가족', '전통'], rating: 0, liked: false }
+                    ],
+
+                    // MOCK PEER USERS (FOR COLLABORATIVE FILTERING)
+                    peers: [
+                        { 
+                            id: 'peer1', 
+                            name: '민수 (SF 매니아)', 
+                            avatar: '🧑‍🚀', 
+                            trait: '우주/SF 영화 선호',
+                            ratings: { 1: 5, 2: 1, 3: 2, 4: 5, 5: 2 } 
+                        },
+                        { 
+                            id: 'peer2', 
+                            name: '지민 (애니 덕후)', 
+                            avatar: '👩‍🎨', 
+                            trait: '감성 애니/음악 선호',
+                            ratings: { 1: 2, 2: 1, 3: 5, 4: 2, 5: 5 } 
+                        },
+                        { 
+                            id: 'peer3', 
+                            name: '철수 (스릴러 마니아)', 
+                            avatar: '🕵️', 
+                            trait: '공포/미스터리 선호',
+                            ratings: { 1: 1, 2: 5, 3: 1, 4: 3, 5: 1 } 
+                        }
+                    ]
+                }
+            },
+            computed: {
+                evaluatedCount() {
+                    return this.movies.filter(m => m.liked || m.rating > 0).length;
+                },
+
+                modeTitle() {
+                    if (this.currentMode === 'content') return '콘텐츠 기반 필터링 (Content-based Filtering)';
+                    if (this.currentMode === 'collaborative') return '협업 필터링 (Collaborative Filtering)';
+                    return '하이브리드 추천 (Hybrid Recommendation)';
+                },
+
+                modeDescription() {
+                    if (this.currentMode === 'content') {
+                        return '내가 과거에 좋아했던 영화의 "태그(#우주, #감동)" 분석을 통해 비슷한 특징을 지닌 아이템을 직접 추천합니다.';
+                    }
+                    if (this.currentMode === 'collaborative') {
+                        return '나와 평점을 매긴 패턴이 가장 비슷한 "친구 유저"를 찾아, 그 친구가 높은 점수를 준 영화를 나에게 추천합니다.';
+                    }
+                    return '콘텐츠의 특징 분석과 다른 유저들의 행동 데이터 분석을 결합하여 추천의 정확도와 다양성을 동시에 잡는 현대적 방식입니다.';
+                },
+
+                modeGuideText() {
+                    if (this.currentMode === 'content') {
+                        return '콘텐츠 기반 필터링은 나 혼자만의 데이터로도 추천이 가능하다는 장점이 있지만, 내가 좋아하는 것과 비슷한 영화만 추천되어 새로운 장르를 발견하기 어렵습니다.';
+                    }
+                    if (this.currentMode === 'collaborative') {
+                        return '협업 필터링은 다른 사람의 경험을 통해 내가 몰랐던 뜻밖의 재미있는 영화를 추천받을 수 있지만, 신규 회원은 데이터가 부족해 추천할 수 없는 Cold Start 문제가 발생합니다.';
+                    }
+                    return '실제 넷플릭스나 유튜브는 한 가지 방식만 쓰지 않고 이 두 방식을 결합한 하이브리드 추천 엔진을 사용하여 사용자 만족도를 극대화합니다.';
+                },
+
+                // 1. EXTRACT ALL TAGS FROM LIKED MOVIES
+                extractedUserTags() {
+                    const likedMovies = this.movies.filter(m => m.liked);
+                    const tags = [];
+                    likedMovies.forEach(m => tags.push(...m.tags));
+                    return tags;
+                },
+
+                extractedUserTagCounts() {
+                    const counts = {};
+                    this.extractedUserTags.forEach(tag => {
+                        counts[tag] = (counts[tag] || 0) + 1;
+                    });
+                    return counts;
+                },
+
+                // CONTENT-BASED RECOMMENDATION CALCULATION (JACCARD SIMILARITY)
+                contentRecommendations() {
+                    const userTagCounts = this.extractedUserTagCounts;
+                    const userTagSet = new Set(this.extractedUserTags);
+                    const totalExtractedCount = userTagSet.size;
+
+                    return this.movies.map(movie => {
+                        let matchScore = 0;
+                        const matchedTags = [];
+                        const movieTagSet = new Set(movie.tags);
+
+                        if (totalExtractedCount > 0) {
+                            movie.tags.forEach(tag => {
+                                if (userTagCounts[tag]) {
+                                    matchedTags.push(tag);
+                                }
+                            });
+                        }
+
+                        // JACCARD SIMILARITY FORMULA: |A ∩ B| / |A ∪ B|
+                        const unionSet = new Set([...userTagSet, ...movieTagSet]);
+                        const unionTagCount = unionSet.size || 1;
+                        const jaccardScore = totalExtractedCount > 0 ? (matchedTags.length / unionTagCount) : 0;
+                        const scorePercentage = Math.round(jaccardScore * 100);
+
+                        return {
+                            movie,
+                            score: scorePercentage,
+                            jaccardScore,
+                            matchedTags,
+                            unionTagCount
+                        };
+                    }).sort((a, b) => b.score - a.score);
+                },
+
+                // 2. COLLABORATIVE FILTERING: SIMILARITY WITH PEERS (EUCLIDEAN / ABSOLUTE DISTANCE)
+                peerSimilarities() {
+                    const ratedMovies = this.movies.filter(m => m.rating > 0);
+                    
+                    return this.peers.map(peer => {
+                        if (ratedMovies.length === 0) {
+                            return { ...peer, similarity: 0, totalDiff: 0, avgDiff: 0, isTopMatch: false };
+                        }
+
+                        // Calculate Absolute Distance for user similarity
+                        let totalDiff = 0;
+                        ratedMovies.forEach(m => {
+                            const peerRating = peer.ratings[m.id] || 3;
+                            totalDiff += Math.abs(m.rating - peerRating);
+                        });
+
+                        const avgDiff = totalDiff / ratedMovies.length;
+                        const similarity = Math.max(0, Math.round(100 - (avgDiff * 20)));
+
+                        return {
+                            ...peer,
+                            totalDiff,
+                            avgDiff,
+                            similarity
+                        };
+                    }).sort((a, b) => b.similarity - a.similarity).map((peer, idx) => ({
+                        ...peer,
+                        isTopMatch: idx === 0 && peer.similarity > 30
+                    }));
+                },
+
+                topPeer() {
+                    return this.peerSimilarities[0] || null;
+                },
+
+                topPeerSimilarity() {
+                    return this.topPeer ? this.topPeer.similarity : 0;
+                },
+
+                collaborativeRecommendations() {
+                    if (!this.topPeer || this.topPeerSimilarity < 30) return [];
+
+                    // Recommend movies that top peer rated >= 4 BUT user hasn't rated yet
+                    const unratedMovies = this.movies.filter(m => m.rating === 0);
+                    
+                    return unratedMovies.map(movie => {
+                        const peerRating = this.topPeer.ratings[movie.id];
+                        const predictedRating = ((peerRating * (this.topPeerSimilarity / 100))).toFixed(1);
+
+                        return {
+                            movie,
+                            predictedRating,
+                            recommendedBy: this.topPeer.name.split(' ')[0]
+                        };
+                    }).filter(rec => rec.predictedRating >= 2.5)
+                      .sort((a, b) => b.predictedRating - a.predictedRating);
+                },
+
+                // 3. HYBRID RECOMMENDATION CALCULATION
+                hybridRecommendations() {
+                    return this.movies.map(movie => {
+                        const contentRec = this.contentRecommendations.find(r => r.movie.id === movie.id);
+                        const contentScore = contentRec ? contentRec.score : 0;
+
+                        // Collaborative factor
+                        let collabScore = 0;
+                        if (this.topPeer) {
+                            const peerRating = this.topPeer.ratings[movie.id] || 0;
+                            collabScore = (peerRating / 5) * this.topPeerSimilarity;
+                        }
+
+                        const finalScore = Math.round((contentScore * 0.4) + (collabScore * 0.6));
+
+                        return {
+                            movie,
+                            finalScore
+                        };
+                    }).sort((a, b) => b.finalScore - a.finalScore);
+                }
+            },
+            methods: {
+                setMode(mode) {
+                    this.currentMode = mode;
+                },
+
+                toggleLike(movieId) {
+                    const movie = this.movies.find(m => m.id === movieId);
+                    if (movie) {
+                        movie.liked = !movie.liked;
+                    }
+                },
+
+                setRating(movieId, rating) {
+                    const movie = this.movies.find(m => m.id === movieId);
+                    if (movie) {
+                        movie.rating = movie.rating === rating ? 0 : rating;
+                    }
+                },
+
+                resetData() {
+                    this.movies.forEach(m => {
+                        m.liked = false;
+                        m.rating = 0;
+                    });
+                },
+
+                triggerColdStart() {
+                    this.resetData();
+                    this.currentMode = 'collaborative';
+                    this.showColdStartModal = true;
+                },
+
+                triggerFilterBubble() {
+                    this.resetData();
+                    // Interstellar & Avengers Like
+                    this.movies[0].liked = true;
+                    this.movies[3].liked = true;
+                    this.currentMode = 'content';
+                    this.showFilterBubbleModal = true;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
